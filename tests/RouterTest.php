@@ -34,7 +34,6 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $this->router->set('{foo}-', 'param_dash');
         $this->router->set('-{foo}-', 'dash_param_dash');
         $this->router->set('abc{foo}uvw', 'text_param_text');
-        $this->router->set('{foo}{bar}', 'param_param');
         $this->router->set('{foo}-{bar}', 'param_dash_param');
         $this->router->set('{foo}/{bar}', 'param_slash_param');
         $this->router->set('/{foo}/{bar}/', 'slash_param_slash_param');
@@ -54,7 +53,6 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
     public function testSingleParamRoutes()
     {
-        // TODO: Add assertions.
         $pathControllers = [
             'bar' => 'only_param',
             '/bar' => 'slash_param',
@@ -75,7 +73,36 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
     public function testMultipleParamRoutes()
     {
-        // TODO: Add assertions.
+        $pathControllers = [
+            'foo-bar' => 'param_dash_param',
+            'foo/bar' => 'param_slash_param',
+            '/foo/bar/' => 'slash_param_slash_param',
+            '/abc/foo/xyz/bar/uvw' => 'text_param_text_param_text',
+        ];
+
+        foreach ($pathControllers as list($path, $controller)) {
+            list($controller, $params) = $this->router->run($path);
+            $this->assertEquals($controller, $controller);
+            $this->assertCount($params, 1);
+            $this->assertEquals($params, ['foo' => 'bar']);
+        }
+    }
+
+    public function testRedundantRules()
+    {
+        $router = new Router();
+        $router->set('{foo}{bar}', 'param_param');
+        $router->set('{foo}', 'param');
+        list($controller, $params) = $this->router->run('abc');
+        $this->assertEquals($controller, 'param_param');
+        $this->assertEquals($params, ['foo' => 'a', 'bar' => 'bc']);
+
+        $router = new Router();
+        $router->set('{foo}', 'param');
+        $router->set('{foo}{bar}', 'param_param');
+        list($controller, $params) = $this->router->run('abc');
+        $this->assertEquals($controller, 'param');
+        $this->assertEquals($params, ['foo' => 'abc']);
     }
 
     /**
@@ -84,7 +111,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
      * match a null path.
      *
      * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Paths can only be strings. 'NULL' provided.
+     * @expectedExceptionMessage  'NULL' is not a string.
      */
     public function testNullPath()
     {
@@ -97,10 +124,36 @@ class RouterTest extends PHPUnit_Framework_TestCase
      * match a non-string path.
      *
      * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Paths can only be strings. 'integer' provided.
+     * @expectedExceptionMessage  'integer' is not a string.
      */
     public function testInvalidPath()
     {
         $this->router->run(1);
+    }
+
+    /**
+     * Ensures the router will throw an
+     * exception when the user tries to
+     * add a null route.
+     *
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  'NULL' is not a string.
+     */
+    public function testNullRoute()
+    {
+        $this->router->add(null);
+    }
+
+    /**
+     * Ensures the router will throw an
+     * exception when the user tries to
+     * add a non-string route.
+     *
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  'integer' is not a string.
+     */
+    public function testInvalidRoute()
+    {
+        $this->router->add(1);
     }
 }
