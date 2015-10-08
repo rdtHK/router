@@ -4,8 +4,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Rdthk\\Router\\": "src/",
-            "Rdthk\\Router\\Tests\\": "tests/"
+            "Rdthk\\Routing\\": "src/",
+            "Rdthk\\Routing\\Tests\\": "tests/"
         }
     }
 }
