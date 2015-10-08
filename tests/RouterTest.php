@@ -61,7 +61,12 @@ class RouterTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * TODO: Add exception annotations.
+     * Ensures the router will throw an
+     * exception when the user tries to
+     * match a null path.
+     *
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Paths can only be strings. 'NULL' provided.
      */
     public function testNullPath()
     {
@@ -69,7 +74,12 @@ class RouterTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-    * TODO: Add exception annotations.
+     * Ensures the router will throw an
+     * exception when the user tries to
+     * match a non-string path.
+     *
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Paths can only be strings. 'integer' provided.
      */
     public function testInvalidPath()
     {
