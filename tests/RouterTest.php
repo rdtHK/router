@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use Rdthk\Router\Router;
+use Rdthk\Routing\Router;
 
 class RouterTest extends PHPUnit_Framework_TestCase
 {
@@ -27,16 +27,18 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $this->router->set('/', 'only_slash');
         $this->router->set('/abc/', 'static_route');
         $this->router->set('{foo}', 'only_param');
-        $this->router->set('/{foo}', 'slash_then_param');
-        $this->router->set('{foo}/', 'param_then_slash');
+        $this->router->set('/{foo}', 'slash_param');
+        $this->router->set('{foo}/', 'param_slash');
         $this->router->set('/{foo}/', 'slash_param_slash');
         $this->router->set('-{foo}', 'dash_param');
         $this->router->set('{foo}-', 'param_dash');
         $this->router->set('-{foo}-', 'dash_param_dash');
+        $this->router->set('abc{foo}uvw', 'text_param_text');
         $this->router->set('{foo}{bar}', 'param_param');
         $this->router->set('{foo}-{bar}', 'param_dash_param');
         $this->router->set('{foo}/{bar}', 'param_slash_param');
         $this->router->set('/{foo}/{bar}/', 'slash_param_slash_param');
+        $this->router->set('/abc/{foo}/xyz/{bar}/uvw', 'text_param_text_param_text');
     }
 
     public function testStaticRoutes()
@@ -53,6 +55,22 @@ class RouterTest extends PHPUnit_Framework_TestCase
     public function testSingleParamRoutes()
     {
         // TODO: Add assertions.
+        $pathControllers = [
+            'bar' => 'only_param',
+            '/bar' => 'slash_param',
+            'bar/' => 'param_slash',
+            '/bar/' => 'slash_param_slash',
+            '-bar' => 'dash_param',
+            'bar-' => 'param_dash',
+            '-bar-' => 'dash_param_dash',
+            'abcbaruvw' => 'text_param_text',
+        ];
+        foreach ($pathControllers as list($path, $controller)) {
+            list($controller, $params) = $this->router->run($path);
+            $this->assertEquals($controller, $controller);
+            $this->assertCount($params, 1);
+            $this->assertEquals($params, ['foo' => 'bar']);
+        }
     }
 
     public function testMultipleParamRoutes()
