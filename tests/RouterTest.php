@@ -63,9 +63,9 @@ class RouterTest extends PHPUnit_Framework_TestCase
             '-bar-' => 'dash_param_dash',
             'abcbaruvw' => 'text_param_text',
         ];
-        foreach ($pathControllers as list($path, $controller)) {
+        foreach ($pathControllers as list($path, $c)) {
             list($controller, $params) = $this->router->run($path);
-            $this->assertEquals($controller, $controller);
+            $this->assertEquals($controller, $c);
             $this->assertCount($params, 1);
             $this->assertEquals($params, ['foo' => 'bar']);
         }
@@ -80,9 +80,9 @@ class RouterTest extends PHPUnit_Framework_TestCase
             '/abc/foo/xyz/bar/uvw' => 'text_param_text_param_text',
         ];
 
-        foreach ($pathControllers as list($path, $controller)) {
+        foreach ($pathControllers as list($path, $c)) {
             list($controller, $params) = $this->router->run($path);
-            $this->assertEquals($controller, $controller);
+            $this->assertEquals($controller, $c);
             $this->assertCount($params, 1);
             $this->assertEquals($params, ['foo' => 'bar']);
         }
@@ -103,6 +103,15 @@ class RouterTest extends PHPUnit_Framework_TestCase
         list($controller, $params) = $this->router->run('abc');
         $this->assertEquals($controller, 'param');
         $this->assertEquals($params, ['foo' => 'abc']);
+    }
+
+    public function testNoMatches()
+    {
+        $router = new Router();
+        $router->add('/', 'foo');
+        list($controller, $params) = $router->run('bar');
+        $this->assertNull($controller);
+        $this->assertEmpty($params);
     }
 
     public function testAddReturnsThis()
