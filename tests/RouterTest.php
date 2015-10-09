@@ -143,7 +143,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
     /**
      * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Nested params are not allowed.
+     * @expectedExceptionMessage  Nested parameters are not allowed.
      */
     public function testNestedBrackets()
     {
