@@ -24,4 +24,71 @@ namespace Rdthk\Routing;
  */
 class Router
 {
+    private $routes;
+
+    function __construct() {
+        $this->routes = [];
+    }
+
+    public function add($route, $controller) {
+        $type = gettype($route);
+        if ($type !== 'string') {
+            throw new \InvalidArgumentException(
+                "'$type' is not a string."
+            );
+        }
+        $this->routes[] = [$route, $controller];
+    }
+
+    public function run($path) {
+        $type = gettype($path);
+        if ($type !== 'string') {
+            throw new \InvalidArgumentException(
+                "'$type' is not a string."
+            );
+        }
+        foreach ($this->routes as list($route, $controller)) {
+            $compiled = $this->compile($route);
+            $params = $this->match($compiled, $path);
+
+            if ($params !== false) {
+                return [$controller, $params];
+            }
+        }
+    }
+
+    public function compile($route)
+    {
+        $compiled = [];
+        $begin = 0;
+        $state = 'str';
+        for ($i = 0; $i < strlen($route); $i++) {
+            if ($state === 'param' && $route[$i] === '{') {
+                // Syntax Error
+            }
+            if ($state === 'str' && $route[$i] === '}') {
+                // Syntax Error
+            }
+            if (
+                ($state === 'param' && $route[$i] === '{') ||
+                ($state === 'str' && $route[$i] === '}')
+            ) {
+                $str = substr($route, $begin, $i - $begin);
+                $begin = $i + 1;
+                $compiled[] = [$state, $str];
+                $state = $state === 'str'? 'param':'str';
+            }
+        }
+        if ($state === 'param') {
+            // Syntax Error
+        }
+        if ($state === 'str') {
+            $compiled[] = ['str', substr($route, $begin)];
+        }
+        return $compiled;
+    }
+
+    public function match($compiled, $path) {
+        return false;
+    }
 }

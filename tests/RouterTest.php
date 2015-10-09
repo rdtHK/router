@@ -24,20 +24,20 @@ class RouterTest extends PHPUnit_Framework_TestCase
     public function setUp()
     {
         $this->router = new Router();
-        $this->router->set('/', 'only_slash');
-        $this->router->set('/abc/', 'static_route');
-        $this->router->set('{foo}', 'only_param');
-        $this->router->set('/{foo}', 'slash_param');
-        $this->router->set('{foo}/', 'param_slash');
-        $this->router->set('/{foo}/', 'slash_param_slash');
-        $this->router->set('-{foo}', 'dash_param');
-        $this->router->set('{foo}-', 'param_dash');
-        $this->router->set('-{foo}-', 'dash_param_dash');
-        $this->router->set('abc{foo}uvw', 'text_param_text');
-        $this->router->set('{foo}-{bar}', 'param_dash_param');
-        $this->router->set('{foo}/{bar}', 'param_slash_param');
-        $this->router->set('/{foo}/{bar}/', 'slash_param_slash_param');
-        $this->router->set('/abc/{foo}/xyz/{bar}/uvw', 'text_param_text_param_text');
+        $this->router->add('/', 'only_slash');
+        $this->router->add('/abc/', 'static_route');
+        $this->router->add('{foo}', 'only_param');
+        $this->router->add('/{foo}', 'slash_param');
+        $this->router->add('{foo}/', 'param_slash');
+        $this->router->add('/{foo}/', 'slash_param_slash');
+        $this->router->add('-{foo}', 'dash_param');
+        $this->router->add('{foo}-', 'param_dash');
+        $this->router->add('-{foo}-', 'dash_param_dash');
+        $this->router->add('abc{foo}uvw', 'text_param_text');
+        $this->router->add('{foo}-{bar}', 'param_dash_param');
+        $this->router->add('{foo}/{bar}', 'param_slash_param');
+        $this->router->add('/{foo}/{bar}/', 'slash_param_slash_param');
+        $this->router->add('/abc/{foo}/xyz/{bar}/uvw', 'text_param_text_param_text');
     }
 
     public function testStaticRoutes()
@@ -91,38 +91,59 @@ class RouterTest extends PHPUnit_Framework_TestCase
     public function testRedundantRules()
     {
         $router = new Router();
-        $router->set('{foo}{bar}', 'param_param');
-        $router->set('{foo}', 'param');
+        $router->add('{foo}{bar}', 'param_param');
+        $router->add('{foo}', 'param');
         list($controller, $params) = $this->router->run('abc');
         $this->assertEquals($controller, 'param_param');
         $this->assertEquals($params, ['foo' => 'a', 'bar' => 'bc']);
 
         $router = new Router();
-        $router->set('{foo}', 'param');
-        $router->set('{foo}{bar}', 'param_param');
+        $router->add('{foo}', 'param');
+        $router->add('{foo}{bar}', 'param_param');
         list($controller, $params) = $this->router->run('abc');
         $this->assertEquals($controller, 'param');
         $this->assertEquals($params, ['foo' => 'abc']);
     }
 
-    /**
-     * Ensures the router will throw an
-     * exception when the user tries to
-     * match a null path.
-     *
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  'NULL' is not a string.
-     */
-    public function testNullPath()
+    public function testAddReturnsThis()
     {
-        $this->router->run(null);
+        $router = new Router();
+        $x = $router->add('foo', 'bar');
+        $this->assertSame($router, $x);
     }
 
     /**
-     * Ensures the router will throw an
-     * exception when the user tries to
-     * match a non-string path.
-     *
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Missing closing bracket.
+     */
+    public function testUnmatchedBracketInTheEnd()
+    {
+        $router = new Router();
+        $router->add('{test', '');
+    }
+
+    /**
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Missing closing bracket.
+     */
+    public function testUnmatchedBracketInTheMiddle()
+    {
+        $router = new Router();
+        $router->add('/{test/', '');
+    }
+
+    /**
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Nested params are not allowed.
+     */
+    public function testNestedBrackets()
+    {
+        $router = new Router();
+        $router->add('/{{test}}/', '');
+    }
+
+
+    /**
      * @expectedException        \InvalidArgumentException
      * @expectedExceptionMessage  'integer' is not a string.
      */
@@ -132,28 +153,11 @@ class RouterTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Ensures the router will throw an
-     * exception when the user tries to
-     * add a null route.
-     *
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  'NULL' is not a string.
-     */
-    public function testNullRoute()
-    {
-        $this->router->add(null);
-    }
-
-    /**
-     * Ensures the router will throw an
-     * exception when the user tries to
-     * add a non-string route.
-     *
      * @expectedException        \InvalidArgumentException
      * @expectedExceptionMessage  'integer' is not a string.
      */
     public function testInvalidRoute()
     {
-        $this->router->add(1);
+        $this->router->add(1, '');
     }
 }
