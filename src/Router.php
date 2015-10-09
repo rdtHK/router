@@ -37,7 +37,8 @@ class Router
                 "'$type' is not a string."
             );
         }
-        $this->routes[] = [$route, $controller];
+        $this->routes[] = [$this->compile($route), $controller];
+        return $this;
     }
 
     public function run($path) {
@@ -47,14 +48,14 @@ class Router
                 "'$type' is not a string."
             );
         }
-        foreach ($this->routes as list($route, $controller)) {
-            $compiled = $this->compile($route);
-            $params = $this->match($compiled, $path);
+        foreach ($this->routes as list($compiledRoute, $controller)) {
+            $params = $this->match($compiledRoute, $path);
 
             if ($params !== false) {
                 return [$controller, $params];
             }
         }
+        return [null, []];
     }
 
     public function compile($route)
@@ -65,13 +66,19 @@ class Router
         for ($i = 0; $i < strlen($route); $i++) {
             if ($state === 'param' && $route[$i] === '{') {
                 // Syntax Error
+                throw new \InvalidArgumentException(
+                    "Nested parameters are not allowed."
+                );
             }
             if ($state === 'str' && $route[$i] === '}') {
                 // Syntax Error
+                throw new \InvalidArgumentException(
+                    "Trying to close unopenend bracket."
+                );
             }
             if (
-                ($state === 'param' && $route[$i] === '{') ||
-                ($state === 'str' && $route[$i] === '}')
+                ($state === 'param' && $route[$i] === '}') ||
+                ($state === 'str' && $route[$i] === '{')
             ) {
                 $str = substr($route, $begin, $i - $begin);
                 $begin = $i + 1;
@@ -79,8 +86,11 @@ class Router
                 $state = $state === 'str'? 'param':'str';
             }
         }
-        if ($state === 'param') {
+        if ($state === 'param' && $route[strlen($route) - 1] !== '}') {
             // Syntax Error
+            throw new \InvalidArgumentException(
+                "Missing closing bracket."
+            );
         }
         if ($state === 'str') {
             $compiled[] = ['str', substr($route, $begin)];
