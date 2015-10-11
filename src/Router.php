@@ -19,8 +19,22 @@
 namespace Rdthk\Routing;
 
 /**
- * Small dependency injection container that can also double as
- * a service locator. Or maybe the opposite.
+ * Small router class.
+ * It does not have any fancy type checking on the patterns
+ * and also does not make any assumptions about what kind of 'controller'
+ * is passed to it.
+ *
+ * Please note that the param matching is non-greedy.
+ *
+ * Usage:
+ *
+ * $router = new Router();
+ * $router->add('/articles/{id}-{name}', 'print_article');
+ * list($controller, $params) = $router->run('/articles/123-article-title');
+ *
+ * echo $controller; // 'print_article'
+ * echo $params; // ['id' => '123', 'name' => 'article-title']
+ *
  */
 class Router
 {
@@ -33,6 +47,13 @@ class Router
         $this->routes = [];
     }
 
+    /**
+     * Adds a new route and its respective controller to the router.
+     *
+     * @param string $route      A route pattern.
+     * @param mixed $controller
+     * @return \Rdthk\Routing\Router
+     */
     public function add($route, $controller) {
         $type = gettype($route);
         if ($type !== 'string') {
@@ -44,6 +65,18 @@ class Router
         return $this;
     }
 
+    /**
+     * Tries to match the path with the available patterns.
+     *
+     * This method will always return an array with two elements:
+     * a controller followed by a list of params extracted from the path.
+     *
+     * If the pattern couldn't be matched, the first element of the return
+     * value will be null and the second an empty array.
+     *
+     * @param  string  $path The path to be matched.
+     * @return [mixed]       A two element array with controller and params.
+     */
     public function run($path) {
         $type = gettype($path);
         if ($type !== 'string') {
