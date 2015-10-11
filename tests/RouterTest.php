@@ -26,11 +26,11 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router->add('/abc/', 'static_route');
 
         list($controller, $params) = $router->run('/');
-        $this->assertEquals($controller, 'only_slash');
+        $this->assertEquals('only_slash', $controller);
         $this->assertEmpty($params);
 
         list($controller, $params) = $router->run('/abc/');
-        $this->assertEquals($controller, 'static_route');
+        $this->assertEquals('static_route', $controller);
         $this->assertEmpty($params);
     }
 
@@ -50,9 +50,9 @@ class RouterTest extends PHPUnit_Framework_TestCase
             $router = new Router();
             $router->add($pattern, $c);
             list($controller, $params) = $router->run($path);
-            $this->assertEquals($controller, $c);
-            $this->assertCount($params, 1);
-            $this->assertEquals($params, ['foo' => 'bar']);
+            $this->assertEquals($c, $controller);
+            $this->assertCount(1, $params);
+            $this->assertEquals(['foo' => 'bar'], $params);
         }
     }
 
@@ -73,12 +73,12 @@ class RouterTest extends PHPUnit_Framework_TestCase
             $router = new Router();
             $router->add($pattern, $c);
             list($controller, $params) = $router->run($path);
-            $this->assertEquals($controller, $c);
-            $this->assertCount($params, 2);
-            $this->assertEquals($params, [
+            $this->assertEquals($c, $controller);
+            $this->assertCount(2, $params);
+            $this->assertEquals([
                 'foo' => 'bar',
                 'bar' => 'foo'
-            ]);
+            ], $params);
         }
     }
 
@@ -88,15 +88,17 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router->add('{foo}{bar}', 'param_param');
         $router->add('{foo}', 'param');
         list($controller, $params) = $router->run('abc');
-        $this->assertEquals($controller, 'param_param');
-        $this->assertEquals($params, ['foo' => '', 'bar' => 'abc']);
+        $this->assertEquals('param_param', $controller);
+        $this->assertCount(2, $params);
+        $this->assertEquals(['foo' => '', 'bar' => 'abc'], $params);
 
         $router = new Router();
         $router->add('{foo}', 'param');
         $router->add('{foo}{bar}', 'param_param');
         list($controller, $params) = $router->run('abc');
-        $this->assertEquals($controller, 'param');
-        $this->assertEquals($params, ['foo' => 'abc']);
+        $this->assertEquals('param', $controller);
+        $this->assertCount(1, $params);
+        $this->assertEquals(['foo' => 'abc'], $params);
     }
 
     public function testNoMatches()
@@ -112,7 +114,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
     {
         $router = new Router();
         $x = $router->add('foo', 'bar');
-        $this->assertSame($router, $x);
+        $this->assertSame($x, $router);
     }
 
     /**
@@ -145,6 +147,15 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router->add('/{{test}}/', '');
     }
 
+    /**
+     * @expectedException        \InvalidArgumentException
+     * @expectedExceptionMessage  Unnamed parameters are not allowed.
+     */
+    public function testUnnamedParameter()
+    {
+        $router = new Router();
+        $router->add('{}', 'empty');
+    }
 
     /**
      * @expectedException        \InvalidArgumentException
