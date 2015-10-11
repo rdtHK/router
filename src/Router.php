@@ -24,6 +24,9 @@ namespace Rdthk\Routing;
  */
 class Router
 {
+    const T_PARAM = 0;
+    const T_STR = 1;
+
     private $routes;
 
     function __construct() {
@@ -61,44 +64,83 @@ class Router
     public function compile($route)
     {
         $compiled = [];
-        $begin = 0;
-        $state = 'str';
+        $state = Router::T_STR;
+        $acc = '';
         for ($i = 0; $i < strlen($route); $i++) {
-            if ($state === 'param' && $route[$i] === '{') {
-                // Syntax Error
-                throw new \InvalidArgumentException(
-                    "Nested parameters are not allowed."
-                );
-            }
-            if ($state === 'str' && $route[$i] === '}') {
-                // Syntax Error
+            $c = $route[$i];
+            if ($state === Router::T_STR && $c === '{') {
+                $state = Router::T_PARAM;
+                if (!empty($acc)) {
+                    $compiled[] = [Router::T_STR, $acc];
+                    $acc = '';
+                }
+            } elseif ($state === Router::T_STR && $c === '}') {
                 throw new \InvalidArgumentException(
                     "Trying to close unopenend bracket."
                 );
-            }
-            if (
-                ($state === 'param' && $route[$i] === '}') ||
-                ($state === 'str' && $route[$i] === '{')
-            ) {
-                $str = substr($route, $begin, $i - $begin);
-                $begin = $i + 1;
-                $compiled[] = [$state, $str];
-                $state = $state === 'str'? 'param':'str';
+            } elseif ($state === Router::T_STR) {
+                $acc .= $c;
+            } elseif ($state === Router::T_PARAM && $c === '}') {
+                $state = Router::T_STR;
+                if (empty($acc)) {
+                    throw new \InvalidArgumentException(
+                        "Unnamed parameters are not allowed."
+                    );
+                }
+                $compiled[] = [Router::T_PARAM, $acc];
+                $acc = '';
+            } elseif ($state === Router::T_PARAM && $c === '{') {
+                throw new \InvalidArgumentException(
+                    "Nested parameters are not allowed."
+                );
+            } elseif ($state === Router::T_PARAM) {
+                $acc .= $c;
             }
         }
-        if ($state === 'param' && $route[strlen($route) - 1] !== '}') {
-            // Syntax Error
+        if ($state === Router::T_PARAM) {
             throw new \InvalidArgumentException(
                 "Missing closing bracket."
             );
-        }
-        if ($state === 'str') {
-            $compiled[] = ['str', substr($route, $begin)];
+        } elseif ($state === Router::T_STR && !empty($acc)) {
+            $compiled[] = [Router::T_STR, $acc];
         }
         return $compiled;
     }
 
     public function match($compiled, $path) {
-        return false;
+        $params = [];
+        $i = 0;
+        $j = 0;
+        for ($j = 0; $j < count($compiled); $j++) {
+            list($type, $val) = $compiled[$j];
+            $nType = null;
+            $nVal = null;
+            if (isset($compiled[$j + 1])) {
+                list($nType, $nVal) = $compiled[$j + 1];
+            }
+            if ($type === Router::T_STR) {
+                if (strpos($path, $val, $i) !== $i) {
+                    return false;
+                }
+                $i += strlen($val);
+            } elseif ($type === Router::T_PARAM && $nType === null) {
+                $params[$val] = substr($path, $i);
+                $i = strlen($path);
+            } elseif ($type === Router::T_PARAM && $nType === Router::T_PARAM) {
+                $params[$val] = '';
+            } elseif ($type === Router::T_PARAM && $nType === Router::T_STR) {
+                $begin = $i;
+                $end = strpos($path, $nVal, $i);
+                if ($end === -1) {
+                    return false;
+                }
+                $params[$val] = substr($path, $begin, $end - $begin);
+                $i = $end;
+            }
+        }
+        if ($i !== strlen($path)) {
+            return false;
+        }
+        return $params;
     }
 }
