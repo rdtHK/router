@@ -21,14 +21,15 @@ class RouterTest extends PHPUnit_Framework_TestCase
 {
     public function testStaticRoutes()
     {
-        $this->router->add('/', 'only_slash');
-        $this->router->add('/abc/', 'static_route');
+        $router = new Router();
+        $router->add('/', 'only_slash');
+        $router->add('/abc/', 'static_route');
 
-        list($controller, $params) = $this->router->run('/');
+        list($controller, $params) = $router->run('/');
         $this->assertEquals($controller, 'only_slash');
         $this->assertEmpty($params);
 
-        list($controller, $params) = $this->router->run('/abc/');
+        list($controller, $params) = $router->run('/abc/');
         $this->assertEquals($controller, 'static_route');
         $this->assertEmpty($params);
     }
@@ -75,7 +76,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
             $this->assertEquals($controller, $c);
             $this->assertCount($params, 2);
             $this->assertEquals($params, [
-                'foo' => 'bar'
+                'foo' => 'bar',
                 'bar' => 'foo'
             ]);
         }
@@ -86,14 +87,14 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router = new Router();
         $router->add('{foo}{bar}', 'param_param');
         $router->add('{foo}', 'param');
-        list($controller, $params) = $this->router->run('abc');
+        list($controller, $params) = $router->run('abc');
         $this->assertEquals($controller, 'param_param');
         $this->assertEquals($params, ['foo' => '', 'bar' => 'abc']);
 
         $router = new Router();
         $router->add('{foo}', 'param');
         $router->add('{foo}{bar}', 'param_param');
-        list($controller, $params) = $this->router->run('abc');
+        list($controller, $params) = $router->run('abc');
         $this->assertEquals($controller, 'param');
         $this->assertEquals($params, ['foo' => 'abc']);
     }
