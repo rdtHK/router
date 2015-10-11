@@ -19,29 +19,11 @@ use Rdthk\Routing\Router;
 
 class RouterTest extends PHPUnit_Framework_TestCase
 {
-    private $router;
-
-    public function setUp()
-    {
-        $this->router = new Router();
-        $this->router->add('/', 'only_slash');
-        $this->router->add('/abc/', 'static_route');
-        $this->router->add('{foo}', 'only_param');
-        $this->router->add('/{foo}', 'slash_param');
-        $this->router->add('{foo}/', 'param_slash');
-        $this->router->add('/{foo}/', 'slash_param_slash');
-        $this->router->add('-{foo}', 'dash_param');
-        $this->router->add('{foo}-', 'param_dash');
-        $this->router->add('-{foo}-', 'dash_param_dash');
-        $this->router->add('abc{foo}uvw', 'text_param_text');
-        $this->router->add('{foo}-{bar}', 'param_dash_param');
-        $this->router->add('{foo}/{bar}', 'param_slash_param');
-        $this->router->add('/{foo}/{bar}/', 'slash_param_slash_param');
-        $this->router->add('/abc/{foo}/xyz/{bar}/uvw', 'text_param_text_param_text');
-    }
-
     public function testStaticRoutes()
     {
+        $this->router->add('/', 'only_slash');
+        $this->router->add('/abc/', 'static_route');
+
         list($controller, $params) = $this->router->run('/');
         $this->assertEquals($controller, 'only_slash');
         $this->assertEmpty($params);
@@ -53,18 +35,20 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
     public function testSingleParamRoutes()
     {
-        $pathControllers = [
-            'bar' => 'only_param',
-            '/bar' => 'slash_param',
-            'bar/' => 'param_slash',
-            '/bar/' => 'slash_param_slash',
-            '-bar' => 'dash_param',
-            'bar-' => 'param_dash',
-            '-bar-' => 'dash_param_dash',
-            'abcbaruvw' => 'text_param_text',
+        $cases = [
+            ['{foo}', 'bar', 'only_param'],
+            ['/{foo}', '/bar', 'slash_param'],
+            ['{foo}/', 'bar/', 'param_slash'],
+            ['/{foo}/', '/bar/', 'slash_param_slash'],
+            ['-{foo}', '-bar', 'dash_param'],
+            ['{foo}-', 'bar-', 'param_dash'],
+            ['-{foo}-', '-bar-', 'dash_param_dash'],
+            ['abc{foo}uvw', 'abcbaruvw', 'text_param_text'],
         ];
-        foreach ($pathControllers as list($path, $c)) {
-            list($controller, $params) = $this->router->run($path);
+        foreach ($cases as list($pattern, $path, $c)) {
+            $router = new Router();
+            $router->add($pattern, $c);
+            list($controller, $params) = $router->run($path);
             $this->assertEquals($controller, $c);
             $this->assertCount($params, 1);
             $this->assertEquals($params, ['foo' => 'bar']);
@@ -73,18 +57,27 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
     public function testMultipleParamRoutes()
     {
-        $pathControllers = [
-            'foo-bar' => 'param_dash_param',
-            'foo/bar' => 'param_slash_param',
-            '/foo/bar/' => 'slash_param_slash_param',
-            '/abc/foo/xyz/bar/uvw' => 'text_param_text_param_text',
+        $cases = [
+            ['{foo}-{bar}', 'bar-foo', 'param_dash_param'],
+            ['{foo}/{bar}', 'bar/foo', 'param_slash_param'],
+            ['/{foo}/{bar}/', '/bar/foo/', 'slash_param_slash_param'],
+            [
+                '/abc/{foo}/xyz/{bar}/uvw',
+                '/abc/bar/xyz/foo/uvw',
+                'text_param_text_param_text'
+            ],
         ];
 
-        foreach ($pathControllers as list($path, $c)) {
-            list($controller, $params) = $this->router->run($path);
+        foreach ($cases as list($pattern, $path, $c)) {
+            $router = new Router();
+            $router->add($pattern, $c);
+            list($controller, $params) = $router->run($path);
             $this->assertEquals($controller, $c);
-            $this->assertCount($params, 1);
-            $this->assertEquals($params, ['foo' => 'bar']);
+            $this->assertCount($params, 2);
+            $this->assertEquals($params, [
+                'foo' => 'bar'
+                'bar' => 'foo'
+            ]);
         }
     }
 
@@ -95,7 +88,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router->add('{foo}', 'param');
         list($controller, $params) = $this->router->run('abc');
         $this->assertEquals($controller, 'param_param');
-        $this->assertEquals($params, ['foo' => 'a', 'bar' => 'bc']);
+        $this->assertEquals($params, ['foo' => '', 'bar' => 'abc']);
 
         $router = new Router();
         $router->add('{foo}', 'param');
@@ -158,7 +151,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
      */
     public function testInvalidPath()
     {
-        $this->router->run(1);
+        $router = new Router();
+        $router->run(1);
     }
 
     /**
@@ -167,6 +161,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
      */
     public function testInvalidRoute()
     {
-        $this->router->add(1, '');
+        $router = new Router();
+        $router->add(1, '');
     }
 }
