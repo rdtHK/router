@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Copyright 2015 Mário Camargo Palmeira
  *
@@ -21,161 +23,50 @@ use PHPUnit\Framework\TestCase;
 
 class RouterTest extends TestCase
 {
-    public function testStaticRoutes()
+    public function testSimpleRouteMatching()
     {
-        $router = new Router();
-        $router->add('/', 'only_slash');
-        $router->add('/abc/', 'static_route');
-
-        list($controller, $params) = $router->run('/');
-        $this->assertEquals('only_slash', $controller);
-        $this->assertEmpty($params);
-
-        list($controller, $params) = $router->run('/abc/');
-        $this->assertEquals('static_route', $controller);
-        $this->assertEmpty($params);
+        $router = new Router;
+        $router->get('/foo/', 'controller');
+        $this->assertEquals(['controller', []], $router->run('get', '/foo/'));
     }
 
-    public function testSingleParamRoutes()
+    public function testMethodMatchingIsCaseInsensitive()
     {
-        $cases = [
-            ['{foo}', 'bar', 'only_param'],
-            ['/{foo}', '/bar', 'slash_param'],
-            ['{foo}/', 'bar/', 'param_slash'],
-            ['/{foo}/', '/bar/', 'slash_param_slash'],
-            ['-{foo}', '-bar', 'dash_param'],
-            ['{foo}-', 'bar-', 'param_dash'],
-            ['-{foo}-', '-bar-', 'dash_param_dash'],
-            ['abc{foo}uvw', 'abcbaruvw', 'text_param_text'],
-        ];
-        foreach ($cases as list($pattern, $path, $c)) {
-            $router = new Router();
-            $router->add($pattern, $c);
-            list($controller, $params) = $router->run($path);
-            $this->assertEquals($c, $controller);
-            $this->assertCount(1, $params);
-            $this->assertEquals(['foo' => 'bar'], $params);
-        }
+        $router = new Router;
+        $router->add('GET', '/foo/', 'controller');
+        $this->assertEquals(['controller', []], $router->run('get', '/foo/'));
     }
 
-    public function testMultipleParamRoutes()
+    public function testSingleParamRoute()
     {
-        $cases = [
-            ['{foo}-{bar}', 'bar-foo', 'param_dash_param'],
-            ['{foo}/{bar}', 'bar/foo', 'param_slash_param'],
-            ['/{foo}/{bar}/', '/bar/foo/', 'slash_param_slash_param'],
-            [
-                '/abc/{foo}/xyz/{bar}/uvw',
-                '/abc/bar/xyz/foo/uvw',
-                'text_param_text_param_text'
-            ],
-        ];
-
-        foreach ($cases as list($pattern, $path, $c)) {
-            $router = new Router();
-            $router->add($pattern, $c);
-            list($controller, $params) = $router->run($path);
-            $this->assertEquals($c, $controller);
-            $this->assertCount(2, $params);
-            $this->assertEquals([
-                'foo' => 'bar',
-                'bar' => 'foo'
-            ], $params);
-        }
+        $router = new Router;
+        $router->get('/:foo/', 'controller');
+        list($controller, $params) = $router->run('get', '/bar/');
+        $this->assertEquals('controller', $controller);
+        $this->assertEquals(['foo' => 'bar'], $params);
     }
 
-    public function testRedundantRules()
+    public function testMultipleParameterRoutes()
     {
-        $router = new Router();
-        $router->add('{foo}{bar}', 'param_param');
-        $router->add('{foo}', 'param');
-        list($controller, $params) = $router->run('abc');
-        $this->assertEquals('param_param', $controller);
-        $this->assertCount(2, $params);
-        $this->assertEquals(['foo' => '', 'bar' => 'abc'], $params);
+        $router = new Router;
+        $router->get('/:foo/:bar/', 'controller');
+        list($controller, $params) = $router->run('get', '/1/2/');
+        $this->assertEquals('controller', $controller);
+        $this->assertEquals(['foo' => '1', 'bar' => '2'], $params);
+    }
 
-        $router = new Router();
-        $router->add('{foo}', 'param');
-        $router->add('{foo}{bar}', 'param_param');
-        list($controller, $params) = $router->run('abc');
-        $this->assertEquals('param', $controller);
-        $this->assertCount(1, $params);
-        $this->assertEquals(['foo' => 'abc'], $params);
+    public function testMultipleRoutes()
+    {
+        $router = new Router;
+        $router->get('/foo', 'c1');
+        $router->get('/bar', 'c2');
+        $this->assertEquals(['c2', []], $router->run('get', '/bar'));
     }
 
     public function testNoMatches()
     {
-        $router = new Router();
-        $router->add('/', 'foo');
-        list($controller, $params) = $router->run('bar');
-        $this->assertNull($controller);
-        $this->assertEmpty($params);
-    }
-
-    public function testAddReturnsThis()
-    {
-        $router = new Router();
-        $x = $router->add('foo', 'bar');
-        $this->assertSame($x, $router);
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Missing closing bracket.
-     */
-    public function testUnmatchedBracketInTheEnd()
-    {
-        $router = new Router();
-        $router->add('{test', '');
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Missing closing bracket.
-     */
-    public function testUnmatchedBracketInTheMiddle()
-    {
-        $router = new Router();
-        $router->add('/{test/', '');
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Nested parameters are not allowed.
-     */
-    public function testNestedBrackets()
-    {
-        $router = new Router();
-        $router->add('/{{test}}/', '');
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  Unnamed parameters are not allowed.
-     */
-    public function testUnnamedParameter()
-    {
-        $router = new Router();
-        $router->add('{}', 'empty');
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  'integer' is not a string.
-     */
-    public function testInvalidPath()
-    {
-        $router = new Router();
-        $router->run(1);
-    }
-
-    /**
-     * @expectedException        \InvalidArgumentException
-     * @expectedExceptionMessage  'integer' is not a string.
-     */
-    public function testInvalidRoute()
-    {
-        $router = new Router();
-        $router->add(1, '');
+        $router = new Router;
+        $router->get('/foo', 'controller');
+        $this->assertEquals([null, []], $router->run('get', '/bar'));
     }
 }

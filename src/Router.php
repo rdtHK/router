@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Copyright 2015 Mário Camargo Palmeira
  *
@@ -29,7 +31,7 @@ namespace Rdthk\Routing;
  * Usage:
  *
  * $router = new Router();
- * $router->add('/articles/{id}-{name}', 'print_article');
+ * $router->add('get', /articles/:id-name', 'print_article')->param('id', '\d+');
  * list($controller, $params) = $router->run('/articles/123-article-title');
  *
  * echo $controller; // 'print_article'
@@ -38,31 +40,33 @@ namespace Rdthk\Routing;
  */
 class Router
 {
-    const T_PARAM = 0;
-    const T_STR = 1;
+    private $routes = [];
 
-    private $routes;
-
-    function __construct() {
-        $this->routes = [];
+    public function add(?string $method, string $path, $controller): Route
+    {
+        $route = new Route($method, $path, $controller);
+        $this->routes[] = $route;
+        return $route;
     }
 
-    /**
-     * Adds a new route and its respective controller to the router.
-     *
-     * @param string $route      A route pattern.
-     * @param mixed $controller
-     * @return \Rdthk\Routing\Router
-     */
-    public function add($route, $controller) {
-        $type = gettype($route);
-        if ($type !== 'string') {
-            throw new \InvalidArgumentException(
-                "'$type' is not a string."
-            );
-        }
-        $this->routes[] = [$this->compile($route), $controller];
-        return $this;
+    public function get(string $path, $controller): Route
+    {
+        return $this->add('get', $path, $controller);
+    }
+
+    public function post(string $path, $controller): Route
+    {
+        return $this->add('post', $path, $controller);
+    }
+
+    public function put(string $path, $controller): Route
+    {
+        return $this->add('put', $path, $controller);
+    }
+
+    public function delete(string $path, $controller): Route
+    {
+        return $this->add('delete', $path, $controller);
     }
 
     /**
@@ -73,107 +77,43 @@ class Router
      *
      * If the pattern couldn't be matched, the first element of the return
      * value will be null and the second an empty array.
-     *
-     * @param  string  $path The path to be matched.
-     * @return [mixed]       A two element array with controller and params.
      */
-    public function run($path) {
-        $type = gettype($path);
-        if ($type !== 'string') {
-            throw new \InvalidArgumentException(
-                "'$type' is not a string."
-            );
-        }
-        foreach ($this->routes as list($compiledRoute, $controller)) {
-            $params = $this->match($compiledRoute, $path);
+    public function run(string $method, string $path): array
+    {
+        foreach ($this->routes as $route) {
+            $m = $route->getMethod();
 
-            if ($params !== false) {
-                return [$controller, $params];
+            if ($m !== null && strcasecmp($m, $method) !== 0) {
+                continue;
             }
+
+            $regex = $this->compile($route);
+
+            if (!preg_match($regex, $path, $matches)) {
+                continue;
+            }
+
+            foreach ($matches as $key => $value) {
+                if (!is_string($key)) {
+                    unset($matches[$key]);
+                }
+            }
+
+            return [$route->getController(), $matches];
         }
+
         return [null, []];
     }
 
-    public function compile($route)
+    private function compile(Route $route): string
     {
-        $compiled = [];
-        $state = Router::T_STR;
-        $acc = '';
-        for ($i = 0; $i < strlen($route); $i++) {
-            $c = $route[$i];
-            if ($state === Router::T_STR && $c === '{') {
-                $state = Router::T_PARAM;
-                if (!empty($acc)) {
-                    $compiled[] = [Router::T_STR, $acc];
-                    $acc = '';
-                }
-            } elseif ($state === Router::T_STR && $c === '}') {
-                throw new \InvalidArgumentException(
-                    "Trying to close unopenend bracket."
-                );
-            } elseif ($state === Router::T_STR) {
-                $acc .= $c;
-            } elseif ($state === Router::T_PARAM && $c === '}') {
-                $state = Router::T_STR;
-                if (empty($acc)) {
-                    throw new \InvalidArgumentException(
-                        "Unnamed parameters are not allowed."
-                    );
-                }
-                $compiled[] = [Router::T_PARAM, $acc];
-                $acc = '';
-            } elseif ($state === Router::T_PARAM && $c === '{') {
-                throw new \InvalidArgumentException(
-                    "Nested parameters are not allowed."
-                );
-            } elseif ($state === Router::T_PARAM) {
-                $acc .= $c;
-            }
-        }
-        if ($state === Router::T_PARAM) {
-            throw new \InvalidArgumentException(
-                "Missing closing bracket."
-            );
-        } elseif ($state === Router::T_STR && !empty($acc)) {
-            $compiled[] = [Router::T_STR, $acc];
-        }
-        return $compiled;
-    }
+        $regex = $route->getPath();
 
-    public function match($compiled, $path) {
-        $params = [];
-        $i = 0;
-        $j = 0;
-        for ($j = 0; $j < count($compiled); $j++) {
-            list($type, $val) = $compiled[$j];
-            $nType = null;
-            $nVal = null;
-            if (isset($compiled[$j + 1])) {
-                list($nType, $nVal) = $compiled[$j + 1];
-            }
-            if ($type === Router::T_STR) {
-                if (strpos($path, $val, $i) !== $i) {
-                    return false;
-                }
-                $i += strlen($val);
-            } elseif ($type === Router::T_PARAM && $nType === null) {
-                $params[$val] = substr($path, $i);
-                $i = strlen($path);
-            } elseif ($type === Router::T_PARAM && $nType === Router::T_PARAM) {
-                $params[$val] = '';
-            } elseif ($type === Router::T_PARAM && $nType === Router::T_STR) {
-                $begin = $i;
-                $end = strpos($path, $nVal, $i);
-                if ($end === -1) {
-                    return false;
-                }
-                $params[$val] = substr($path, $begin, $end - $begin);
-                $i = $end;
-            }
+        foreach ($route->getParameters() as $name => $type) {
+            $regex = str_replace(":$name", "(?<$name>$type)", $regex);
         }
-        if ($i !== strlen($path)) {
-            return false;
-        }
-        return $params;
+
+        $regex = '{^' . $regex . '$}';
+        return $regex;
     }
 }
