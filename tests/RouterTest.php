@@ -69,4 +69,28 @@ class RouterTest extends TestCase
         $router->get('/foo', 'controller');
         $this->assertEquals([null, []], $router->run('get', '/bar'));
     }
+
+    public function testRouteGroups()
+    {
+        $router = new Router;
+        $router->group('/foo', function ($router) {
+            $router->get('/bar', 'controller');
+        });
+        $this->assertEquals(
+            ['controller', []],
+            $router->run('get', '/foo/bar')
+        );
+    }
+
+    public function testRouteGroupParameters()
+    {
+        $router = new Router;
+        $router->group('/foo/:id', function ($router) {
+            $router->get('/bar', 'controller');
+        });
+        $this->assertEquals(
+            ['controller', ['id' => 'baz']],
+            $router->run('get', '/foo/baz/bar')
+        );
+    }
 }

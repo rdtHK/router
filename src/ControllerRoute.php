@@ -20,37 +20,29 @@ declare(strict_types=1);
 
 namespace Rdthk\Routing;
 
-abstract class Route
+/**
+ *
+ */
+class ControllerRoute extends Route
 {
-    private $path;
-    private $parameters;
+    private $method;
+    private $controller;
 
-    public function __construct(string $path)
+    public function __construct(?string $method, string $path, $controller)
     {
-        $this->path = $path;
-        $this->parameters = [];
-
-        // find all parameters
-        preg_match_all('/:(?<param>[a-zA-Z_][a-zA-Z_0-9]*)/', $path, $matches);
-
-        foreach ($matches['param'] as $match) {
-            $this->parameters[$match] = '.*';
-        }
+        parent::__construct($path);
+        $this->method = $method;
+        $this->controller = $controller;
     }
 
-    public function param(string $name, string $regex): Route
+    public function getMethod(): ?string
     {
-        $this->parameters[$name] = $regex;
+        return $this->method;
     }
 
-    public function getPath(): string
+    public function getController()
     {
-        return $this->path;
-    }
-
-    public function getParameters(): array
-    {
-        return $this->parameters;
+        return $this->controller;
     }
 
 }

@@ -40,13 +40,21 @@ namespace Rdthk\Routing;
  */
 class Router
 {
-    private $routes = [];
+    private $routes;
+
+    public function __construct()
+    {
+        $this->routes = new RouteGroup('');
+    }
+
+    public function group(string $path, callable $callback): Route
+    {
+        return $this->routes->group($path, $callback);
+    }
 
     public function add(?string $method, string $path, $controller): Route
     {
-        $route = new Route($method, $path, $controller);
-        $this->routes[] = $route;
-        return $route;
+        return $this->routes->add($method, $path, $controller);
     }
 
     public function get(string $path, $controller): Route
@@ -80,36 +88,73 @@ class Router
      */
     public function run(string $method, string $path): array
     {
-        foreach ($this->routes as $route) {
-            $m = $route->getMethod();
+        return $this->runRouteGroup($this->routes, $method, $path, '', []);
+    }
 
-            if ($m !== null && strcasecmp($m, $method) !== 0) {
-                continue;
+    private function runRouteGroup(RouteGroup $group, string $reqMethod,
+        string $reqPath, string $path, array $params)
+    {
+        $path = $path . $group->getPath();
+        $params = array_merge($params, $group->getParameters());
+
+        foreach ($group->getChildren() as $child) {
+            if ($child instanceof RouteGroup) {
+                $result = $this->runRouteGroup(
+                    $child,
+                    $reqMethod,
+                    $reqPath,
+                    $path,
+                    $params
+                );
+            } else {
+                $result = $this->runControllerRoute(
+                    $child,
+                    $reqMethod,
+                    $reqPath,
+                    $path,
+                    $params
+                );
             }
 
-            $regex = $this->compile($route);
-
-            if (!preg_match($regex, $path, $matches)) {
-                continue;
+            if ($result[0] !== null) {
+                return $result;
             }
-
-            foreach ($matches as $key => $value) {
-                if (!is_string($key)) {
-                    unset($matches[$key]);
-                }
-            }
-
-            return [$route->getController(), $matches];
         }
 
         return [null, []];
     }
 
-    private function compile(Route $route): string
+    private function runControllerRoute(ControllerRoute $route, string $reqMethod,
+        string $reqPath, string $path, array $params)
     {
-        $regex = $route->getPath();
+        $path = $path . $route->getPath();
+        $params = array_merge($params, $route->getParameters());
+        $method = $route->getMethod();
 
-        foreach ($route->getParameters() as $name => $type) {
+        if ($method !== null && strcasecmp($method, $reqMethod) !== 0) {
+            return [null, []];
+        }
+
+        $regex = $this->compile($path, $params);
+
+        if (!preg_match($regex, $reqPath, $matches)) {
+            return [null, []];
+        }
+
+        foreach ($matches as $key => $value) {
+            if (!is_string($key)) {
+                unset($matches[$key]);
+            }
+        }
+
+        return [$route->getController(), $matches];
+    }
+
+    private function compile(string $path, array $params): string
+    {
+        $regex = $path;
+
+        foreach ($params as $name => $type) {
             $regex = str_replace(":$name", "(?<$name>$type)", $regex);
         }
 
